@@ -1,0 +1,97 @@
+module i2c_slave(
+	input i_rstn,
+	input i_ck,
+	input i_i2c_clk,
+	inout io_i2c_dat,
+	output o_address,
+	output o_data,
+	input  i_data);
+	
+	parameter device_address = 7'h2;
+	
+	reg dat_oe;
+	reg [7:0] in_date;
+	reg [7:0] out_date;
+	reg [3:0] state;
+	reg [7:0] i2c_clk_cnt;
+	reg [3:0] recv_bits;
+	reg need_count;
+	reg byte_ok;
+	reg request;
+	reg clear_ack;
+	always @(negedge i_rstn or posedge i_ck) begin
+		if (i_rstn == 0) begin
+			dat_oe <= 1'h0;
+			state  <= 4h'0;//idle
+			i2c_clk_cnt <= 8'h0;
+			in_date <= 8'h0;
+			recv_bits <= 4'h0;
+			need_count <= 1'h0;
+			byte_ok <= 1'h0;
+			request <= 1'h0;
+			clear_ack <= 1'h0;
+		end else if (state == 4'h0) begin
+			if (i_i2c_clk == 1'h1) begin
+				i2c_clk_cnt <= i2c_clk_cnt + 8'h1;
+			end else if (i2c_clk_cnt == 8'hff)begin
+				i2c_clk_cnt <= 8'h10;
+			end else if (i_i2c_clk == 1'h0) begin
+				i2c_clk_cnt <= 8'h0;
+			end
+		end else if (state == 4'h1) begin // recv the device address
+			if (i_i2c_clk == 1'h1) begin
+				if (need_count == 1'h1) begin
+					i2c_clk_cnt <= i2c_clk_cnt + 8'h1;
+				end
+				if (i2c_clk_cnt == 8'h9 && recv_bits < 4'h8) begin
+					in_date <= {in_date[6:0],io_i2c_dat};
+					i2c_clk_cnt <= 8'h0;
+					recv_bits <= recv_bits + 4'h1;
+					need_count <= 1'h0;
+				end
+				if (recv_bits == 4'h8) begin
+					byte_ok <= 1'h1;
+				end
+			end else begin
+					i2c_clk_cnt <= 8'h0;
+					need_count <= 1'h1;
+			end
+			
+			if (byte_ok == 1'h1) begin
+				if (device_address == in_date[7:1]) begin
+					request <= in_date[0];
+					state <= 4'h2;// ack the address
+				end
+			end
+		end else if (state == 4'h2) begin
+			if (i_i2c_clk == 1'h0 && dat_oe == 1'h0) begin
+				out_date[0] <= 1'h0;//ack
+				dat_oe <= 1'h1;
+			end else if (i_i2c_clk == 1'h1 && dat_oe == 1'h1) begin
+				clear_ack <= 1'h1;
+			end else if (i_i2c_clk == 1'h0 && dat_oe == 1'h1 && clear_ack) begin
+				dat_oe <= 1'h0;
+				clear_ack <= 1'h0;
+				state <= 4'h3;//wait reg address
+			end
+		end
+	end
+	
+	always @(negedge i_rstn or io_i2c_dat) begin
+		if (i_rstn == 0) begin
+			state  <= 4h'0;//idle
+			need_count <= 1'h0;
+			byte_ok <= 1'h0;
+			request <= 1'h0;
+			clear_ack <= 1'h0;
+		end else if (io_i2c_dat == 1'h0 && state == 4'h0 && i2c_clk_cnt > 8'h9) begin
+			state <= 4'h1;//start
+			i2c_clk_cnt <= 8'h0;
+			need_count <= 1'h1;
+			byte_ok <= 1'h0;
+		end 
+	end
+	
+	assign io_i2c_dat = (dat_oe)?out_date[0]:1'hz;
+	
+endmodule
