@@ -13,6 +13,7 @@ add wave -noupdate -format Logic /tst_bench_top/myslave/sda_out
 add wave -noupdate -format Logic /tst_bench_top/myslave/device_addr_match
 add wave -noupdate -format Logic /tst_bench_top/myslave/in_data
 add wave -noupdate -format Logic /tst_bench_top/myslave/indat_done
+add wave -noupdate -format Logic /tst_bench_top/myslave/send_done
 add wave -noupdate -format Logic /tst_bench_top/myslave/sram_cs
 add wave -noupdate -format Logic /tst_bench_top/myslave/sram_rw
 add wave -noupdate -format Logic /tst_bench_top/myslave/reg_address

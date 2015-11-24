@@ -9,6 +9,8 @@ module i2c_slave(
 	sram_odata,
 	sram_idata
 );
+parameter DEVICE_ID = 7'b000_010;
+
 input SCL;
 inout SDA;
 input i_rstn;
@@ -26,7 +28,6 @@ reg [7:0] sram_idata;
 //wire [7:0] sram_addr;
 
 parameter BITS_NR = 4'h8;
-parameter DEVICE_ID = 7'b0010_000;
 
 reg [3:0] i2c_state;
 parameter IDLE = 4'h0;
@@ -139,8 +140,7 @@ always @(posedge i_ck or negedge i_rstn) begin
 		DEVICE_ADDR:
 		begin
 			if (indat_done)
-				//if (device_addr_match)
-					i2c_state <= ACK_ADDRESS;
+				i2c_state <= ACK_ADDRESS;
 			else
 				i2c_state <= DEVICE_ADDR;
 			//end
@@ -149,9 +149,12 @@ always @(posedge i_ck or negedge i_rstn) begin
 		ACK_ADDRESS:
 		begin
 			if (send_done) begin
-				if (device_addr_match)
-					i2c_state <= REG_ADDR;
-				else //nack return to idle
+				if (device_addr_match) begin
+					if (device_write)
+						i2c_state <= REG_ADDR;
+					else if (device_read)
+						i2c_state <= REG_RD_DATA;
+				end else //nack return to idle
 					i2c_state <= IDLE;
 			end else
 				i2c_state <= ACK_ADDRESS;
@@ -185,8 +188,10 @@ always @(posedge i_ck or negedge i_rstn) begin
 			else
 				i2c_state <= REG_WR_DATA;
 
-			if (i2c_start || i2c_stop)
-				i2c_state <= IDLE;				
+			if (i2c_stop)
+				i2c_state <= IDLE;
+			else if (i2c_start)
+				i2c_state <= START;
 		end
 		
 		REG_RD_DATA:
@@ -205,8 +210,10 @@ always @(posedge i_ck or negedge i_rstn) begin
 			else
 				i2c_state <= ACK_REG_WRITE;
 			
-			if (i2c_start || i2c_stop)
+			if (i2c_stop)
 				i2c_state <= IDLE;
+			else if (i2c_start)
+				i2c_state <= START;
 		end
 		
 		MASTER_ACK:
@@ -216,7 +223,8 @@ always @(posedge i_ck or negedge i_rstn) begin
 					i2c_state <= REG_RD_DATA;
 				else
 					i2c_state <= IDLE;
-			end
+			end else
+				i2c_state <= MASTER_ACK;
 		end
 		default: i2c_state <= IDLE;
 		endcase		
@@ -268,8 +276,24 @@ always @(posedge i_ck or negedge i_rstn) begin
 			reg_address <= in_data;
 		else if (i2c_state == ACK_REG_WRITE && send_done)
 			reg_address <= reg_address + 1'h1;
+		else if (i2c_state == MASTER_ACK && indat_done)
+			reg_address <= reg_address + 1'h1;
 	end
 end
+
+/*
+reg [7:0] sram_odata_reg;
+//latch sram data
+always @(negedge i_ck or negedge i_rstn) begin
+	if (!i_rstn)
+		sram_odata_reg <= 8'h0;
+	else begin
+		if (!sram_cs && sram_rw) begin
+			sram_odata_reg <= sram_odata;
+		end
+	end
+end
+*/
 
 //process sram cs, rw
 always @(posedge i_ck or negedge i_rstn) begin
@@ -288,14 +312,13 @@ always @(posedge i_ck or negedge i_rstn) begin
 				sram_rw <= 1'b1;
 			end
 		end else if((i2c_state == REG_RD_DATA)) begin
-			if (!sram_cs_doing) begin
+			//if (!sram_cs_doing) begin
 				sram_cs <= 1'b0;//sram enable
 				sram_rw <= 1'b1; // sram read
-				sram_cs_doing <= 1'b1;
-			end else begin
+				//sram_cs_doing <= 1'b1;
+			/*end else begin
 				sram_cs <= 1'b1;
-				sram_rw <= 1'b1;
-			end
+				sram_rw <= 1'b1;*/
 		end else begin
 			sram_cs <= 1'b1;//sram disable
 			sram_rw <= 1'b1; //
@@ -348,6 +371,7 @@ always @(posedge i_ck or negedge i_rstn) begin
 			end else
 				sda_state <= RECVING;
 			send_done <= 1'b0;
+			out_bit <= 3'h7;
 		end
 		
 		SENDING:
@@ -360,12 +384,12 @@ always @(posedge i_ck or negedge i_rstn) begin
 				end
 				sda_out_en <= 1'b1;
 				sda_state <= SENDWAIT;
-			end else if (i2c_state == REG_RD_DATA && scl_reg == 8'b11111110) begin
+			end else if (i2c_state == REG_RD_DATA && scl_reg == 8'b11000000) begin
 				sda_out <= sram_odata[out_bit];
 				out_bit <= out_bit - 1'h1;
 				sda_out_en <= 1'b1;			
 				sda_state<=SENDDATA;
-			end else if (scl_reg == 8'b11111110) begin
+			end else if ((i2c_state == ACK_REGADDR || i2c_state == ACK_REG_WRITE) && (scl_reg == 8'b11111110)) begin
 				sda_out <= ACK;
 				sda_out_en <= 1'b1;
 				sda_state <= SENDWAIT;

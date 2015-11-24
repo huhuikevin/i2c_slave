@@ -17,15 +17,15 @@ input [7:0] i_data;
 output [7:0] o_data;
 reg [7:0] o_data;
 
-reg [7:0] DATA[3:0]; //32 number 8bit register
+reg [7:0] DATA[15:0]; //32 number 8bit register
 
-always @(negedge i_rstn or negedge i_ck) begin
+always @(negedge i_rstn or posedge i_ck) begin
 	if (!i_rstn) begin
 		DATA[0] <= 8'h0;
 		DATA[1] <= 8'h0;
 		DATA[2] <= 8'h0;
-		DATA[3] <= 8'h0;
-		DATA[4] <= 8'h0;
+		DATA[3] <= 8'h12;
+		DATA[4] <= 8'h34;
 		DATA[5] <= 8'h0;
 		DATA[6] <= 8'h0;
 		DATA[7] <= 8'h0;
