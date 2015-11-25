@@ -78,7 +78,7 @@ reg [2:0] out_bit;
 reg [7:0]reg_address;//register address which is to be read or write
 
 assign sram_addr = reg_address[3:0];
-assign SDA = (sda_out_en)?((sda_out)?1'bz:0):1'bz;
+assign SDA = (sda_out_en)?((sda_out)?1'bz:1'b0):1'bz;
 
 //latch scl and sda to detect the start and stop condition
 always @(posedge i_ck or negedge i_rstn) begin
