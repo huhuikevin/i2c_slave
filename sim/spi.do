@@ -11,6 +11,7 @@ add wave -noupdate -format Logic /tst_bench_spi/u1/spi_ctrl
 add wave -noupdate -format Logic /tst_bench_spi/u1/o_csn
 add wave -noupdate -format Logic /tst_bench_spi/u1/o_sclk
 add wave -noupdate -format Logic /tst_bench_spi/u1/o_mosi
+add wave -noupdate -format Logic /tst_bench_spi/u1/i_miso
 add wave -noupdate -format Logic /tst_bench_spi/u1/spi_state
 add wave -noupdate -format Logic /tst_bench_spi/u1/change_state
 TreeUpdate [SetDefaultTree]

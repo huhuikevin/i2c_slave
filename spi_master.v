@@ -60,9 +60,6 @@ always @(negedge i_rstn or posedge i_ck) begin
 		slave_reg_data_o[1] <= 8'h0;
 		spi_ctrl <= 8'h0;
 	end else begin
-		if (spi_state == S_STOP)
-			spi_ctrl[0] <= 1'b0;
-		else 
 		if (i_wr) begin
 			case (i_address)
 			4'b0000:
@@ -153,11 +150,12 @@ always @(i_rstn or spi_state or clk_cnt) begin
 				o_mosi <= temp_addr[5'h7 -  bit_cnt];
 				o_sclk <= 1'b0;
 				bit_cnt = bit_cnt + 1'b1;
+
+			end else if (clk_cnt == CLK_CNT) begin
 				if (bit_cnt == 5'h8) begin
 					bit_cnt <= 5'h0;
 					change_state <= 1'b1;
-				end
-			end else if (clk_cnt == CLK_CNT) begin
+				end			
 				o_sclk <= 1'b1;
 			end
 		end
@@ -186,6 +184,7 @@ always @(i_rstn or spi_state or clk_cnt) begin
 			end else if (clk_cnt == (CLK_CNT/2 - 1)) begin
 				o_csn <= 1'b1;
 				change_state <= 1'b1;
+				spi_ctrl[0] <= 1'b0;
 			end
 		end
 		endcase
@@ -211,22 +210,28 @@ always @(i_rstn or spi_state or spi_ctrl[0] or change_state) begin
 		end
 		S_TX_ADDR:
 		begin
-			if (change_state)
+			if (change_state) begin
 				spi_state <= S_TX_DATA;
+				change_state <= 1'b0;
+			end
 			else
 				spi_state <= S_TX_ADDR;
 		end
 		S_TX_DATA:
 		begin
-			if (change_state)
+			if (change_state) begin
 				spi_state <= S_WAIT_STOP;
+				change_state <= 1'b0;
+			end
 			else
 				spi_state <= S_TX_DATA;
 		end			
 		S_WAIT_STOP:
 		begin
-			if (change_state)
+			if (change_state) begin
 				spi_state <= S_STOP;
+				change_state <= 1'b0;
+			end
 			else
 				spi_state <= S_WAIT_STOP;			
 		end

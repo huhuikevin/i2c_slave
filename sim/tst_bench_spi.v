@@ -109,6 +109,8 @@ module tst_bench_spi();
 	
 	reg miso;
 	wire sclk, mosi, scs;
+	
+	always @(mosi) miso <= mosi;
 	// hookup wishbone master model
 	spi_master_model #(8, 4) u0 (
 		.clk(clk),
@@ -166,7 +168,10 @@ module tst_bench_spi();
 	      $display("status: %t core enabled", $time);
 
 
-
+		  u0.wb_read(1, SPI_CTRL_REG, q);
+		  $display("SPI_CTRL_REG: %t received %x .", $time, q);
+		  while(q[0])
+			u0.wb_read(1, SPI_CTRL_REG, q);
 	      // check data just received
 	      u0.wb_read(1, SPI_RX_REG, qq);
 
